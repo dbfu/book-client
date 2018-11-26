@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0,maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+  <title>book</title>
+  <link rel="stylesheet" href="./index.css" type="text/css" />
+  <style>
+    #app {
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    #root {
+      column-width: 100vw;
+      column-count: 1;
+      column-gap: 16px;
+      height: calc(100vh - 72px);
+      padding: 36px 16px;
+      overflow: visible;
+    }
+
+    .text {
+      text-align: justify;
+      text-justify: inter-ideograph;
+      font-size: 20px;
+      color: #404040;
+      line-height: 30px;
+      font-weight: 600;
+      font-family: Tahoma, Helvetica, Arial, "\5b8b\4f53", sans-serif;
+    }
+
+    #count {
+      position: fixed;
+      bottom: 0;
+      left: 20px;
+      height: 30px;
+      line-height: 30px;
+      color: rgba(0, 0, 0, .4);
+      font-size: 12px;
+    }
+
+    #name {
+      position: fixed;
+      top: 0;
+      left: 20px;
+      height: 30px;
+      line-height: 30px;
+      color: rgba(0, 0, 0, .4);
+      font-size: 12px;
+    }
+
+    .header {
+      height: 64px;
+      background-color: rgba(0, 0, 0, 1);
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      transition: all .3s;
+      transform: translate3d(0, -100%, 0);
+    }
+
+    .header.show {
+      transform: translate3d(0, 0, 0);
+    }
+
+    .image {
+      width: 22px;
+      height: 22px;
+      margin-top: 30px;
+      margin-left: 16px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <div id="name"></div>
+    <div id="root"></div>
+    <div id="count"></div>
+  </div>
+  <div class="header">
+    <img class="image" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAA+klEQVRYR93WQQrCMBSE4ZnTeQHtARQRxI03EVwIbroWPYIexZsIIwUXRRL7krxGsdsW/o/XJg3x5Ytf7uP/AJImAB4kb5bpuk5A0h7A5hVuSJ6HEG6At3jXnZG8VAEE4geS66F4d794AiXxYkBpvAjgEc8GeMWzAJ7xZIB3PAkQiLck55al9ukZ0zIMxQEsSGp0gKQGwKkXar3iplcgaQqgv6fXBXRKSUcAyzGmYPoGxkSYATFE6UpIAkQQ5j9faMUkA7wRWQBPRDbAC1EE8EAUAyKIHcmtZZt2AUQQdU/FAUS9U3F/1JJWAO4kr1VfgSXmthHlxn4S8ASMK4chZ2yxWQAAAABJRU5ErkJggg=="
+    />
+  </div>
+
+  <script>
+
+    var root = document.querySelector("#root");
+    const width = root.offsetWidth - 16;
+    var count = window.document.querySelector("#count");
+    var chapterName = window.document.querySelector("#name");
+    var app = window.document.querySelector("#app");
+    var header = document.querySelector(".header");
+    var image = document.querySelector(".image");
+
+    var nextName = "";
+    var index = 0;
+    var nextContent = "";
+    var startPos = 0;
+
+    var scrollWidht = 0;
+
+    app.addEventListener("touchstart", touchstart);
+
+    app.addEventListener("touchend", touchend);
+
+    image.addEventListener("touchend", () => {
+      window.postMessage("back");
+    });
+
+
+
+    document.addEventListener('message', function (e) {
+
+      let message = JSON.parse(e.data);
+
+      if (message.type == "content") {
+        showContent(message.data, message.name);
+      }
+
+      if (message.type == "next") {
+        nextContent = message.data;
+        nextName = message.name;
+      }
+    })
+
+    function showContent(content, name) {
+
+      var parent = document.createDocumentFragment();
+
+      content.map(item => {
+        var p = document.createElement("p");
+        p.className = "text";
+        p.innerText = item;
+        parent.appendChild(p);
+      })
+
+      root.innerHTML = "";
+      root.appendChild(parent);
+
+      index = 0;
+      root.style.transform = `translate3d(0px,0,0)`;
+      scrollWidht = root.scrollWidth;
+
+      count.innerText = `${index + 1}/${root.scrollWidth / width}`
+
+      chapterName.innerText = name;
+
+    }
+
+    function touchstart(e) {
+      startPos = e.touches[0].pageX;
+    }
+
+    function touchend(e) {
+
+      if (header.classList.contains("show")) {
+        window.postMessage("hiddenSetting");
+        header.classList.remove("show");
+        return;
+      }
+
+      var endPos = e.changedTouches[0].pageX;
+
+      if (startPos == endPos) {
+        if (endPos / width > 0.6) {
+          nextChapter(scrollWidht);
+        } else if (endPos / width < 0.4) {
+          afterChapter(scrollWidht);
+        } else {
+          show();
+        }
+      } else {
+        if (endPos < startPos) {
+          nextChapter(scrollWidht);
+        } else {
+          afterChapter(scrollWidht);
+        }
+      }
+    }
+
+    function nextChapter(scrollWidht) {
+      index += 1;
+
+      if (scrollWidht > index * width) {
+        root.style.transform = `translate3d(${(index * -width) + "px"},0,0)`;
+        count.innerText = `${index + 1}/${root.scrollWidth / width}`
+      } else {
+        root.onclick = null;
+        window.postMessage("getNextChapter");
+
+        showContent(nextContent, nextName);
+      }
+    }
+
+    function afterChapter(scrollWidht) {
+
+      index -= 1;
+      if (scrollWidht > index * width) {
+        root.style.transform = `translate3d(${(index * -width) + "px"},0,0)`;
+        count.innerText = `${index + 1}/${root.scrollWidth / width}`
+
+      } else {
+        root.onclick = null;
+        window.postMessage("getNextChapter");
+
+        showContent(nextContent, nextName);
+      }
+    }
+
+    function show() {
+      window.postMessage("showSetting");
+      header.classList.add("show");
+    }
+
+  </script>
+</body>
+
+</html>
